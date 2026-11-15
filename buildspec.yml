@@ -1,0 +1,36 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install -r requirements.txt
+      - pip install pytest
+
+  pre_build:
+    commands:
+      - echo "Running tests"
+      - python -m pytest -q
+      - echo "Logging in to Amazon ECR"
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - AWS_REGION=$AWS_DEFAULT_REGION
+      - ECR_REPOSITORY=flask-ecs-app
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-8)-$CODEBUILD_BUILD_NUMBER
+
+  build:
+    commands:
+      - echo "Building Docker image"
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+
+  post_build:
+    commands:
+      - echo "Pushing Docker image"
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - printf '[{"name":"flask-app","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
