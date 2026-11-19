@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local AWS infrastructure and IAM configuration
+*policy*.json
+*trust*.json
+pipeline*.json
+ecs-task-definition.json
+codebuild-project.json
